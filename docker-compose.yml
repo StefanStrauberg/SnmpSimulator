@@ -1,0 +1,70 @@
+# Simulated routers for manual testing against the real API, on the real
+# 192.168.101.0/24 addressing your production routers use - no config
+# difference between "test" and "production" targets from the app's side.
+#
+# Requires the network from docker-compose.yml to already exist (it's created
+# there, referenced here as `external`), so start that stack at least once
+# first:
+#
+#   docker compose up -d
+#
+# Then bring up only the simulated router(s) you currently need:
+#
+#   docker compose -f docker-compose.snmp.yml up -d --build router-8
+#
+# ...point the app at 192.168.101.8 (SNMP port 161, community "public") same
+# as you would a real device, and tear it down when done:
+#
+#   docker compose -f docker-compose.snmp.yml down
+#
+# To add another simulated device: capture a real dump (see
+# SnmpSimulator/README.md), drop it in SnmpSimulator/dumps/, then copy one of
+# the service blocks below with a new name/IP/--file.
+
+services:
+  router-2:
+    build:
+      context: ./SnmpSimulator
+    container_name: snmp-router-2
+    volumes:
+      - ./SnmpSimulator/dumps:/dumps:ro
+    command:
+      - --file
+      - /dumps/Jun2.txt
+      - --address
+      - 0.0.0.0
+      - --port
+      - '161'
+      - --community
+      - juniper
+    networks:
+      snmp-lan:
+        ipv4_address: 192.168.101.2
+
+  # Copy-paste template for the next simulated device - rename the service,
+  # pick a free IP (anything in 192.168.101.0/24 other than .1, the gateway),
+  # and point --file at that device's own dump:
+  #
+  # router-12:
+  #   build:
+  #     context: ./SnmpSimulator
+  #   container_name: snmp-router-12
+  #   volumes:
+  #     - ./SnmpSimulator/dumps:/dumps:ro
+  #   command:
+  #     - --file
+  #     - /dumps/router-12.txt
+  #     - --address
+  #     - 0.0.0.0
+  #     - --port
+  #     - "161"
+  #     - --community
+  #     - public
+  #   networks:
+  #     snmp-lan:
+  #       ipv4_address: 192.168.101.12
+
+networks:
+  snmp-lan:
+    name: remote-shell-interrupt-net
+    external: true
